@@ -11,8 +11,18 @@
 #define MAXLINE 4096
 
 
-int _send(int sockfd, std::string out) {
-    return send(sockfd, out.c_str(), out.size(), 0);
+int _send(int sock, std::string out) {
+    return send(sock, out.c_str(), out.size(), 0);
+}
+
+int _read(int sock, char* buf) {
+    int len;
+    for(len=0;recv(sock, buf, 1, 0);len++, buf++)
+        if (*buf=='\n')
+            if (*(buf-1)=='\r') {
+                *(buf+1)='\0';
+                return len;
+            }
 }
 
 int main(int argc, const char *argv[])
@@ -25,9 +35,8 @@ int main(int argc, const char *argv[])
     struct hostent *he;
     struct in_addr **addr_list;
          
-    if ((he = gethostbyname(server_hostname)) == NULL) {
-        return 0;
-    }
+    if ((he = gethostbyname(server_hostname)) == NULL)
+        return 1;
  
     addr_list = (struct in_addr **) he->h_addr_list;
      
@@ -44,33 +53,25 @@ int main(int argc, const char *argv[])
     servaddr.sin_family = AF_INET;
     servaddr.sin_port = htons(port);
 
-    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
         return 1;
-    }
 
-    if (inet_pton(AF_INET, server, &servaddr.sin_addr) <= 0) {
+    if (inet_pton(AF_INET, server, &servaddr.sin_addr) <= 0)
         return 1;
-    }
 
-    if (connect(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0 ) {
+    if (connect(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0 )
         return 1;
-    }    
 
     _send(sockfd, "NICK ARADIABOT\r\n");
-    std::string userstring = "USER ARADIABOT " + std::string(server_hostname) + " bla :Aradia Megido\r\n";
+    std::string userstring = "USER ARADIABOT " + 
+            std::string(server_hostname) + " bla :Aradia Megido\r\n";
     _send(sockfd, userstring);
     _send(sockfd, "JOIN #iridia\r\n");
 
-    while(1) {
-        char recvline[MAXLINE+1];
-        if (read(sockfd, recvline, MAXLINE) > 0) {
-            std::string line = std::string(recvline);
-            if (line.find(":PING") != std::string::npos) {
-                std::cout << "Received ping request..." << std::endl;
-            } else {
-                std::cout << line << std::endl;
-            } 
-        }
+    char recvline[MAXLINE];
+    while(_read(sockfd, recvline)) {
+        std::string line = recvline;
+        std::cout << line;
     }
 
     return 0;
