@@ -10,14 +10,9 @@
 
 #define MAXLINE 4096
 
-char recvline[MAXLINE+1] = "0";
 
 int _send(int sockfd, std::string out) {
     return send(sockfd, out.c_str(), out.size(), 0);
-}
-
-int _read(int sockfd) {
-    return read(sockfd, recvline, MAXLINE);
 }
 
 int main(int argc, const char *argv[])
@@ -41,7 +36,8 @@ int main(int argc, const char *argv[])
         break;
     }
 
-    printf("Connecting to %s (%s:%li)\n", server_hostname, server, port);
+    std::cout << "Connecting to " << server_hostname << " " << " (" << 
+            server << ":" << port << ")" << std::endl;
 
     struct sockaddr_in servaddr;
     bzero(&servaddr, sizeof(servaddr));
@@ -66,7 +62,8 @@ int main(int argc, const char *argv[])
     _send(sockfd, "JOIN #iridia\r\n");
 
     while(1) {
-        if (_read(sockfd) > 0) {
+        char recvline[MAXLINE+1];
+        if (read(sockfd, recvline, MAXLINE) > 0) {
             std::string line = std::string(recvline);
             if (line.find(":PING") != std::string::npos) {
                 std::cout << "Received ping request..." << std::endl;
