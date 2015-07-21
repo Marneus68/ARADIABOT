@@ -29,11 +29,10 @@ int _read(int sock, char* buf) {
     return 0;
 }
 
-int main(int argc, const char *argv[])
-{
+int main(int argc, const char *argv[]) {
+    std::string server_hostname = "irc.rizon.net";
+    std::string server = "";
     unsigned int port = 6667;
-    char *server_hostname = (char*)"irc.rizon.net";
-    char server[] = "";
     int sockfd, i;
 
     struct hostent *he;
@@ -41,14 +40,14 @@ int main(int argc, const char *argv[])
          
     std::cout << "Getting IP list for the hostname " << server_hostname << 
         "..." << std::endl;
-    if ((he = gethostbyname(server_hostname)) == NULL)
+    if ((he = gethostbyname((char*)server_hostname.c_str())) == NULL)
         return 1;
  
     addr_list = (struct in_addr **) he->h_addr_list;
      
     std::cout << "Selecting IP address..." << std::endl;
     for(i = 0; addr_list[i] != NULL; i++)  {
-        strcpy(server , inet_ntoa(*addr_list[i]));
+        server.assign(inet_ntoa(*addr_list[i]));
         break;
     }
 
@@ -63,7 +62,7 @@ int main(int argc, const char *argv[])
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
         return 1;
 
-    if (inet_pton(AF_INET, server, &servaddr.sin_addr) <= 0)
+    if (inet_pton(AF_INET, server.c_str(), &servaddr.sin_addr) <= 0)
         return 1;
 
     if (connect(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0 )
@@ -71,10 +70,10 @@ int main(int argc, const char *argv[])
 
     _send(sockfd, "NICK ARADIABOT\r\n");
     std::string userstring = "USER ARADIABOT " + 
-            std::string(server_hostname) + " bla :Aradia Megido\r\n";
+            server_hostname + " bla :Aradia Megido\r\n";
     _send(sockfd, userstring);
     std::cout << "Joining channel..." << std::endl;
-    _send(sockfd, "JOIN #iridia\r\n");
+    _send(sockfd, "JOIN #iridia_test\r\n");
 
     char recvline[MAXLINE];
     while(_read(sockfd, recvline)) {
@@ -85,13 +84,12 @@ int main(int argc, const char *argv[])
         std::istream_iterator<std::string> end;
         std::vector<std::string> vstrings(begin, end);
 
-        std::string::size_type loc = s.find( "PING", 0 );
-        if(loc != std::string::npos ){
-            if (vstrings[2].compare("ARADIABOT")==0) {
+        if (vstrings.size() > 2) {
+            std::cout << vstrings[3] << std::endl;
+            if (vstrings[3].find("PING") != std::string::npos) {
                 std::cout << "Ping request received." << std::endl;
-                std::string pong = "PONG :" + vstrings[4] + "\r\n";
-                _send(sockfd, pong);
-                _send(sockfd, "PRIVMSG #iridia :ribbit\r\n");
+            } else if (vstrings[3].find("VERSION") != std::string::npos) {
+                std::cout << "Version request received." << std::endl;
             }
         }
     }
