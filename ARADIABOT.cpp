@@ -1,3 +1,4 @@
+//usr/bin/g++ ARADIABOT.cpp -o ARADIABOT -std=c++11; exit
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -7,12 +8,12 @@
 
 #include <iterator>
 #include <iostream>
+#include <cstdlib>
 #include <sstream>
 #include <string>
 #include <vector>
 
 #define MAXLINE 4096
-
 
 int _send(int sock, std::string out) {
     return send(sock, out.c_str(), out.size(), 0);
@@ -30,13 +31,24 @@ int _read(int sock, char* buf) {
 }
 
 int main(int argc, const char *argv[]) {
-    std::string server_hostname = "irc.rizon.net";
+    if (argc < 5) {
+        std::cout << "Not enough parameters provided." << std::endl << 
+                "Usage: ARADIABOT <server name> <port> <channel> <bot name>" << std::endl;
+        exit(0);
+    }
+
+    std::string server_hostname = argv[1];
     std::string server = "";
-    unsigned int port = 6667;
+    std::string channel = argv[3];
+    std::string name = argv[4];
+    unsigned int port = std::stoul(argv[2]);
     int sockfd, i;
 
     struct hostent *he;
     struct in_addr **addr_list;
+
+    if (channel.c_str()[0] != '#')
+        channel = "#" + channel;
          
     std::cout << "Getting IP list for the hostname " << server_hostname << 
         "..." << std::endl;
@@ -68,12 +80,10 @@ int main(int argc, const char *argv[]) {
     if (connect(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0 )
         return 1;
 
-    _send(sockfd, "NICK ARADIABOT\r\n");
-    std::string userstring = "USER ARADIABOT " + 
-            server_hostname + " bla :Aradia Megido\r\n";
-    _send(sockfd, userstring);
+    _send(sockfd, "NICK " + name + "\r\n");
+    _send(sockfd, "USER  " + name + " "  + server_hostname + " bla :Aradia Megido\r\n");
     std::cout << "Joining channel..." << std::endl;
-    _send(sockfd, "JOIN #iridia_test\r\n");
+    _send(sockfd, "JOIN " + channel + "\r\n");
 
     char recvline[MAXLINE];
     while(_read(sockfd, recvline)) {
