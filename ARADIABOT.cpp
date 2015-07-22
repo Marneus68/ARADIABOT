@@ -105,9 +105,11 @@ int main(int argc, const char *argv[]) {
         if (vstrings.size() > 2) {
             if (vstrings[1].find("PRIVMSG") != std::string::npos) {
                 if (vstrings[3].find(":\001PING") != std::string::npos) {
+                    // CTCP Ping Request
                     std::cout << "Ping request received from " << _sendername(s) << "." << std::endl;
                     _send(sockfd, "NOTICE " + _sendername(s) + " :\001PING " + vstrings[4] + "\001\r\n");
                 } else if (vstrings[3].find(":\001VERSION") != std::string::npos) {
+                    // CTCP Version Request
                     std::cout << "Version request received from " << _sendername(s) << "." << std::endl;
                     _send(sockfd, "NOTICE " + _sendername(s) + " :\001VERSION ARADIABOT:0.1:UNIX\001\r\n");
                 }
