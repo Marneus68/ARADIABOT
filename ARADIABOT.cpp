@@ -1,4 +1,4 @@
-//usr/bin/g++ ARADIABOT.cpp -o ARADIABOT -std=c++11; exit
+//usr/bin/g++ ARADIABOT.cpp -o ARADIABOT -std=c++11 -pthread; exit
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -11,9 +11,18 @@
 #include <cstdlib>
 #include <sstream>
 #include <string>
+#include <thread> 
 #include <vector>
 
 #define MAXLINE 4096
+
+std::string server_hostname = "";
+std::string server = "";
+std::string channel = "";
+std::string name = "";
+unsigned int port = 0;
+
+std::string last_person_to_talk = "";
 
 int _send(int sock, std::string out) {
     return send(sock, out.c_str(), out.size(), 0);
@@ -38,6 +47,60 @@ std::string _sendername(std::string & line) {
     return line.substr(a+1, b-1);
 }
 
+void _ribbit(int sock) {
+    if (last_person_to_talk != name) {
+        last_person_to_talk = name;
+        _send(sock, "PRIVMSG " + channel + " :ribbit\r\n");
+    }
+}
+
+void _asyncparse(int sock, std::string in) {
+    std::stringstream ss(in);
+    std::istream_iterator<std::string> begin(ss);
+    std::istream_iterator<std::string> end;
+    std::vector<std::string> vstrings(begin, end);
+
+    if (vstrings.size() > 1) {
+        if (vstrings[0].find("PING") != std::string::npos) {
+            // IRC Ping Request
+            std::cout << "IRC Ping request received the server." << std::endl;
+            _send(sock, "PING " + vstrings[1]);
+            _ribbit(sock);
+            return;
+        }
+    } 
+    
+    if (vstrings.size() > 2) {
+        std::string sendername = _sendername(in);
+        if (vstrings[1].find("PRIVMSG") != std::string::npos) {
+            if (vstrings[2].find(name) != std::string::npos) {
+                if (vstrings[3].find(":\001PING") != std::string::npos) {
+                    // CTCP Ping Request
+                    std::cout << "CTCP Ping request received from " << sendername << "." << std::endl;
+                    _send( sock, "NOTICE " + sendername + " :\001PING " + vstrings[4] + "\001\r\n");
+                    _ribbit(sock);
+                } else if (vstrings[3].find(":\001VERSION") != std::string::npos) {
+                    // CTCP Version Request
+                    std::cout << "CTCP Version request received from " << sendername << "." << std::endl;
+                    _send( sock, "NOTICE " + sendername + " :\001VERSION ARADIABOT:0.1:UNIX\001\r\n");
+                } else if (vstrings[3].find(":REGISTER") != std::string::npos) {
+                    // REGISTER
+                    std::cout << "Adding user " + sendername + " to history service." << std::endl;
+                    _send( sock, "PRIVMSG " + sendername + ":" + sendername + " registered.\r\n");
+                } else if (vstrings[3].find(":UNREGISTER") != std::string::npos) {
+                    // UNREGISTER
+                    std::cout << "Removing user " + sendername + " from the history service." << std::endl;
+                    _send( sock, "PRIVMSG " + sendername + ":" + sendername + " unregistered.\r\n");
+                }
+            } else if (vstrings[2].find(channel) != std::string::npos) {
+                // Public message on the channel
+                std::cout << "Public message on the channel from " << sendername << "." << std::endl;
+                last_person_to_talk = sendername;
+            }
+        }
+    }
+}
+
 int main(int argc, const char *argv[]) {
     if (argc < 5) {
         std::cout << "Not enough parameters provided." << std::endl << 
@@ -45,13 +108,13 @@ int main(int argc, const char *argv[]) {
         exit(0);
     }
 
-    std::string server_hostname = argv[1];
-    std::string server = "";
-    std::string channel = argv[3];
-    std::string name = argv[4];
-    unsigned int port = std::stoul(argv[2]);
-    int sockfd, i;
+    server_hostname = argv[1];
+    server = "";
+    channel = argv[3];
+    name = argv[4];
+    port = std::stoul(argv[2]);
 
+    int sockfd, i;
     struct hostent *he;
     struct in_addr **addr_list;
 
@@ -95,26 +158,8 @@ int main(int argc, const char *argv[]) {
 
     char recvline[MAXLINE];
     while(_read(sockfd, recvline)) {
-
         std::string s = recvline;
-        std::stringstream ss(s);
-        std::istream_iterator<std::string> begin(ss);
-        std::istream_iterator<std::string> end;
-        std::vector<std::string> vstrings(begin, end);
-
-        if (vstrings.size() > 2) {
-            if (vstrings[1].find("PRIVMSG") != std::string::npos) {
-                if (vstrings[3].find(":\001PING") != std::string::npos) {
-                    // CTCP Ping Request
-                    std::cout << "Ping request received from " << _sendername(s) << "." << std::endl;
-                    _send(sockfd, "NOTICE " + _sendername(s) + " :\001PING " + vstrings[4] + "\001\r\n");
-                } else if (vstrings[3].find(":\001VERSION") != std::string::npos) {
-                    // CTCP Version Request
-                    std::cout << "Version request received from " << _sendername(s) << "." << std::endl;
-                    _send(sockfd, "NOTICE " + _sendername(s) + " :\001VERSION ARADIABOT:0.1:UNIX\001\r\n");
-                }
-            }
-        }
+        std::thread(_asyncparse, sockfd, s).detach();
     }
     return 0;
 }
