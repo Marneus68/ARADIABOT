@@ -30,6 +30,14 @@ int _read(int sock, char* buf) {
     return 0;
 }
 
+std::string _sendername(std::string & line) {
+    int a = line.find(":");
+    if (a == std::string::npos)
+        return "";
+    int b = line.find("!"); 
+    return line.substr(a+1, b-1);
+}
+
 int main(int argc, const char *argv[]) {
     if (argc < 5) {
         std::cout << "Not enough parameters provided." << std::endl << 
@@ -95,11 +103,14 @@ int main(int argc, const char *argv[]) {
         std::vector<std::string> vstrings(begin, end);
 
         if (vstrings.size() > 2) {
-            std::cout << vstrings[3] << std::endl;
-            if (vstrings[3].find("PING") != std::string::npos) {
-                std::cout << "Ping request received." << std::endl;
-            } else if (vstrings[3].find("VERSION") != std::string::npos) {
-                std::cout << "Version request received." << std::endl;
+            if (vstrings[1].find("PRIVMSG") != std::string::npos) {
+                if (vstrings[3].find(":\001PING") != std::string::npos) {
+                    std::cout << "Ping request received from " << _sendername(s) << "." << std::endl;
+                    _send(sockfd, "NOTICE " + _sendername(s) + " :\001PING " + vstrings[4] + "\001\r\n");
+                } else if (vstrings[3].find(":\001VERSION") != std::string::npos) {
+                    std::cout << "Version request received from " << _sendername(s) << "." << std::endl;
+                    _send(sockfd, "NOTICE " + _sendername(s) + " :\001VERSION ARADIABOT:0.1:UNIX\001\r\n");
+                }
             }
         }
     }
