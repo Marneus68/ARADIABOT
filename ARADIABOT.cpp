@@ -13,6 +13,7 @@
 #include <string>
 #include <thread> 
 #include <vector>
+#include <map>
 
 #define MAXLINE 4096
 
@@ -23,6 +24,8 @@ std::string name = "";
 unsigned int port = 0;
 
 std::string last_person_to_talk = "";
+
+std::map<std::string, int> registered_users;
 
 int _send(int sock, std::string out) {
     return send(sock, out.c_str(), out.size(), 0);
@@ -87,13 +90,27 @@ void _asyncparse(int sock, std::string in) {
                     // REGISTER
                     std::cout << "Adding user " + sendername + " to history service." << std::endl;
                     _send( sock, "PRIVMSG " + sendername + " :You've been added to the list of registered users.\r\n");
+                    registered_users[sendername] = 1;
                 } else if (vstrings[3].find(":UNREGISTER") != std::string::npos) {
                     // UNREGISTER
-                    std::cout << "Removing user " + sendername + " from the history service." << std::endl;
-                    _send( sock, "PRIVMSG " + sendername + " :You've been removed from the list of a registered users.\r\n");
+                    if (registered_users[sendername]) {
+                        registered_users.erase(sendername);
+                        std::cout << "Removing user " + sendername + " from the history service." << std::endl;
+                        _send( sock, "PRIVMSG " + sendername + " :You've been removed from the list of registered users.\r\n");
+                    } else {
+                        std::cout << "User " + sendername + " is not registered in the history service." << std::endl;
+                        _send( sock, "PRIVMSG " + sendername + " :You're not on thelist of registered users.\r\n");
+                    }
                 } else if (vstrings[3].find(":DETONATE") != std::string::npos) {
-                    _send(sock, "PRIVMSG " + channel + ":\x01" "ACTION explodes.\x01\r\n");
+                    _send(sock, "PRIVMSG " + channel + ":\001ACTION explodes.\001\r\n");
                     _send(sock, "QUIT\r\n");
+                } else if (vstrings[3].find(":LIST") != std::string::npos) {
+                    std::cout << "Request from " + sendername + " to get the list of registered users:" << std::endl;
+                    _send( sock, "PRIVMSG " + sendername + " :Here is the list of registered users:\r\n");
+                    for(auto o : registered_users) {
+                        _send( sock, "PRIVMSG " + sendername + " : - " + o.first +"\r\n");
+                        std::cout << " - " << o.first << std::endl;
+                    }
                 }
             } else if (vstrings[2].find(channel) != std::string::npos) {
                 // Public message on the channel
