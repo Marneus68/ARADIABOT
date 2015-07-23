@@ -1,4 +1,4 @@
-//usr/bin/g++ ARADIABOT.cpp -o ARADIABOT -std=c++11 -pthread; exit
+//usr/bin/g++ ARADIABOT.cpp -o ARADIABOT -g -std=c++11 -pthread; exit
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -63,8 +63,8 @@ void _asyncparse(int sock, std::string in) {
     if (vstrings.size() > 1) {
         if (vstrings[0].find("PING") != std::string::npos) {
             // IRC Ping Request
-            std::cout << "IRC Ping request received the server." << std::endl;
-            _send(sock, "PING " + vstrings[1]);
+            std::cout << "IRC Ping request received from the server." << std::endl;
+            _send(sock, "PING " + vstrings[1] + "\r\n");
             _ribbit(sock);
             return;
         }
@@ -86,11 +86,14 @@ void _asyncparse(int sock, std::string in) {
                 } else if (vstrings[3].find(":REGISTER") != std::string::npos) {
                     // REGISTER
                     std::cout << "Adding user " + sendername + " to history service." << std::endl;
-                    _send( sock, "PRIVMSG " + sendername + ":" + sendername + " registered.\r\n");
+                    _send( sock, "PRIVMSG " + sendername + " :You've been added to the list of registered users.\r\n");
                 } else if (vstrings[3].find(":UNREGISTER") != std::string::npos) {
                     // UNREGISTER
                     std::cout << "Removing user " + sendername + " from the history service." << std::endl;
-                    _send( sock, "PRIVMSG " + sendername + ":" + sendername + " unregistered.\r\n");
+                    _send( sock, "PRIVMSG " + sendername + " :You've been removed from the list of a registered users.\r\n");
+                } else if (vstrings[3].find(":DETONATE") != std::string::npos) {
+                    _send(sock, "PRIVMSG " + channel + ":\x01" "ACTION explodes.\x01\r\n");
+                    _send(sock, "QUIT\r\n");
                 }
             } else if (vstrings[2].find(channel) != std::string::npos) {
                 // Public message on the channel
