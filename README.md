@@ -1,6 +1,6 @@
 # ARADIABOT
 
-This simple and small IRC bot written in C++11.  
+Simple and small IRC bot written in C++11.  
 
 Whith this bot, the users of your channel that register to it will be able to obtain an rundown of what was said and happened while they weren't connected.   
 
