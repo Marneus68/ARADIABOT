@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <netdb.h>
 
+#include <functional>
 #include <iterator>
 #include <iostream>
 #include <cstdlib>
@@ -26,6 +27,69 @@ unsigned int port = 0;
 std::string last_person_to_talk = "";
 
 std::map<std::string, int> registered_users;
+
+int _send(int sock, std::string out);
+int _read(int sock, char* buf);
+void _ribbit(int sock);
+void _asyncparse(int sock, std::string in);
+
+std::string _sendername(std::string & line);
+
+std::map<std::string, std::function<void(int sock, std::string, std::string)>> privmsg_actions = {
+    {":\001PING", [](int sock, std::string sender, std::string str){
+                std::cout << "CTCP Ping request received from " << sender << "." << std::endl;
+                _send( sock, "NOTICE " + sender + " :\001PING " + str + "\001\r\n");
+            }},
+    {":\001VERSION", [](int sock, std::string sender, std::string str){
+                std::cout << "CTCP Version request received from " << sender << "." << std::endl;
+                _send( sock, "NOTICE " + sender + " :\001VERSION ARADIABOT:0.1:UNIX\001\r\n");
+            }},
+    {":REGISTER", [](int sock, std::string sender, std::string str){
+                std::cout << "Adding user " + sender + " to history service." << std::endl;
+                _send( sock, "PRIVMSG " + sender + " :You've been added to the list of registered users.\r\n");
+                registered_users[sender] = 1;
+            }},
+    {":UNREGISTER", [](int sock, std::string sender, std::string str){
+                std::cout << "Request from " + sender + " to unregister from the history service." << std::endl;
+                if (registered_users[sender]) {
+                    registered_users.erase(sender);
+                    std::cout << "Removing registered user " + sender + " from the history service." << std::endl;
+                    _send( sock, "PRIVMSG " + sender + " :You've been removed from the list of registered users.\r\n");
+                } else {
+                    std::cout << "User " + sender + " is not registered in the history service." << std::endl;
+                    _send( sock, "PRIVMSG " + sender + " :You're not on the list of registered users.\r\n");
+                }
+            }},
+    {":LIST", [](int sock, std::string sender, std::string str){
+                std::cout << "Request from " + sender + " to get the list of registered users:" << std::endl;
+                if (registered_users.size()) {
+                    _send( sock, "PRIVMSG " + sender + " :Here is the list of registered users:\r\n");
+                    for(auto o : registered_users) {
+                        _send( sock, "PRIVMSG " + sender + " : - " + o.first +"\r\n");
+                        std::cout << " - " << o.first << std::endl;
+                    }
+                    return;
+                } 
+                _send( sock, "PRIVMSG " + sender + " :No users registered yet.\r\n");
+            }},
+    {":HISTORY", [](int sock, std::string sender, std::string str){
+                std::cout << "Request from " + sender + " to get his relative history." << std::endl;
+                if (registered_users[sender]) {
+                    _send( sock, "PRIVMSG " + sender + " :Here is a rundown of everything that went down while you were away:\r\n");
+                } else {
+                    _send( sock, "PRIVMSG " + sender + " :You're not registered to the history service.\r\n");
+                }
+            }},
+    {":HELP", [](int sock, std::string sender, std::string str) {
+                std::cout << "Request from " + sender + " to get the list of available commands." << std::endl;
+                _send( sock, "PRIVMSG " + sender + " :Here is the list of available commands:\r\n");
+                _send( sock, "PRIVMSG " + sender + " : - REGISTER\r\n");
+                _send( sock, "PRIVMSG " + sender + " : - UNREGISTER\r\n");
+                _send( sock, "PRIVMSG " + sender + " : - LIST\r\n");
+                _send( sock, "PRIVMSG " + sender + " : - HISTORY\r\n");
+                _send( sock, "PRIVMSG " + sender + " : - HELP\r\n");
+            }}
+};
 
 int _send(int sock, std::string out) {
     return send(sock, out.c_str(), out.size(), 0);
@@ -68,7 +132,6 @@ void _asyncparse(int sock, std::string in) {
             // IRC Ping Request
             std::cout << "IRC Ping request received from the server." << std::endl;
             _send(sock, "PING " + vstrings[1] + "\r\n");
-            _ribbit(sock);
             return;
         }
     } 
@@ -77,39 +140,14 @@ void _asyncparse(int sock, std::string in) {
         std::string sendername = _sendername(in);
         if (vstrings[1].find("PRIVMSG") != std::string::npos) {
             if (vstrings[2].find(name) != std::string::npos) {
-                if (vstrings[3].find(":\001PING") != std::string::npos) {
-                    // CTCP Ping Request
-                    std::cout << "CTCP Ping request received from " << sendername << "." << std::endl;
-                    _send( sock, "NOTICE " + sendername + " :\001PING " + vstrings[4] + "\001\r\n");
-                    _ribbit(sock);
-                } else if (vstrings[3].find(":\001VERSION") != std::string::npos) {
-                    // CTCP Version Request
-                    std::cout << "CTCP Version request received from " << sendername << "." << std::endl;
-                    _send( sock, "NOTICE " + sendername + " :\001VERSION ARADIABOT:0.1:UNIX\001\r\n");
-                } else if (vstrings[3].find(":REGISTER") != std::string::npos) {
-                    // REGISTER
-                    std::cout << "Adding user " + sendername + " to history service." << std::endl;
-                    _send( sock, "PRIVMSG " + sendername + " :You've been added to the list of registered users.\r\n");
-                    registered_users[sendername] = 1;
-                } else if (vstrings[3].find(":UNREGISTER") != std::string::npos) {
-                    // UNREGISTER
-                    if (registered_users[sendername]) {
-                        registered_users.erase(sendername);
-                        std::cout << "Removing user " + sendername + " from the history service." << std::endl;
-                        _send( sock, "PRIVMSG " + sendername + " :You've been removed from the list of registered users.\r\n");
-                    } else {
-                        std::cout << "User " + sendername + " is not registered in the history service." << std::endl;
-                        _send( sock, "PRIVMSG " + sendername + " :You're not on thelist of registered users.\r\n");
-                    }
-                } else if (vstrings[3].find(":DETONATE") != std::string::npos) {
-                    _send(sock, "PRIVMSG " + channel + ":\001ACTION explodes.\001\r\n");
-                    _send(sock, "QUIT\r\n");
-                } else if (vstrings[3].find(":LIST") != std::string::npos) {
-                    std::cout << "Request from " + sendername + " to get the list of registered users:" << std::endl;
-                    _send( sock, "PRIVMSG " + sendername + " :Here is the list of registered users:\r\n");
-                    for(auto o : registered_users) {
-                        _send( sock, "PRIVMSG " + sendername + " : - " + o.first +"\r\n");
-                        std::cout << " - " << o.first << std::endl;
+                std::string remains = "";
+                for (int i = 4; i < vstrings.size(); i++) {
+                    remains += " " + vstrings[4];
+                }
+                for (auto act : privmsg_actions) {
+                    if (vstrings[3].find(act.first) != std::string::npos) {
+                        act.second(sock, sendername, remains);
+                        break;
                     }
                 }
             } else if (vstrings[2].find(channel) != std::string::npos) {
