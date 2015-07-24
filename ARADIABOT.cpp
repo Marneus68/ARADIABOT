@@ -218,6 +218,9 @@ void _asyncparse(int sock, std::string in) {
                 if (registered_users.find(sendername) != registered_users.end()) {
                     _send(sock, "PRIVMSG " + sendername + " :It appears as if you're registered to the history service.\r\n");
                     _send(sock, "PRIVMSG " + sendername + " :Type in \"/MSG " + name + " HISTORY\" to see what you've missed.\r\n");
+                } else {
+                    _send(sock, "PRIVMSG " + sendername + " :Welcome to " + channel + ".\r\n");
+                    _send(sock, "PRIVMSG " + sendername + " :I'm " + name + " and if you don't already know, you can type in \"/MSG " + name + " HELP\" to see what I can do for you.\r\n");
                 }
             }
             return;
