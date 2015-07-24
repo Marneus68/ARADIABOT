@@ -88,7 +88,7 @@ std::map<std::string, std::function<void(int sock, std::string, std::string)>> p
                     if (file.good()) {
                         int i = 0;
                         while (std::getline(file, line)) {
-                            if (i > registered_users[sender])
+                            if (i > registered_users[sender]-1)
                                 _send( sock, "PRIVMSG " + sender + " :  || " + line + "\r\n");
                             i++;
                         }
