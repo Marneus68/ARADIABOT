@@ -1,4 +1,4 @@
-//usr/bin/g++ ARADIABOT.cpp -o ARADIABOT -g -std=c++11 -pthread; exit
+//usr/bin/g++ ARADIABOT.cpp -o ARADIABOT -std=c++11 -pthread; exit
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -9,6 +9,7 @@
 #include <functional>
 #include <iterator>
 #include <iostream>
+#include <fstream>
 #include <cstdlib>
 #include <sstream>
 #include <string>
@@ -27,7 +28,7 @@ unsigned int port = 0;
 std::string last_person_to_talk = "";
 std::string last_direct_sender = "";
 
-std::string historyfile = "history.log";
+std::string history_file = "history.log";
 
 std::map<std::string, int> registered_users;
 
@@ -128,6 +129,15 @@ void _ribbit(int sock) {
     if (last_person_to_talk != name) {
         last_person_to_talk = name;
         _send(sock, "PRIVMSG " + channel + " :ribbit\r\n");
+
+        try {
+            std::ofstream file;
+            file.open(history_file, std::ios_base::app);
+            file << "ARADIABOT :ribbit" << std::endl;
+            file.close();
+        } catch (...) {
+            std::cerr << "Error while writing in the history file (" << history_file << ")." << std::endl;
+        }
     }
 }
 
@@ -151,9 +161,8 @@ void _asyncparse(int sock, std::string in) {
         if (vstrings[1].find("PRIVMSG") != std::string::npos) {
             if (vstrings[2].find(name) != std::string::npos) {
                 std::string remains = "";
-                for (int i = 4; i < vstrings.size(); i++) {
-                    remains += " " + vstrings[4];
-                }
+                for (int i = 4; i < vstrings.size(); i++)
+                    remains += " " + vstrings[i];
                 for (auto act : privmsg_actions) {
                     if (vstrings[3].compare(act.first) == 0) {
                         act.second(sock, sendername, remains);
@@ -163,7 +172,20 @@ void _asyncparse(int sock, std::string in) {
             } else if (vstrings[2].find(channel) != std::string::npos) {
                 // Public message on the channel
                 std::cout << "Public message on the channel from " << sendername << "." << std::endl;
+                std::string remains = "";
                 last_person_to_talk = sendername;
+
+                for (int i = 3; i < vstrings.size(); i++)
+                    remains += " " + vstrings[i];
+
+                try {
+                    std::ofstream file;
+                    file.open(history_file, std::ios_base::app);
+                    file << sendername << remains << std::endl;
+                    file.close();
+                } catch (...) {
+                    std::cerr << "Error while writing in the history file (" << history_file << ")." << std::endl;
+                }
             }
         }
     }
