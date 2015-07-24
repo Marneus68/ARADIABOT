@@ -81,6 +81,7 @@ std::map<std::string, std::function<void(int sock, std::string, std::string)>> p
     {":HISTORY", [](int sock, std::string sender, std::string str){
                 std::cout << "Request from " + sender + " to get his relative history." << std::endl;
                 if (registered_users.find(sender) != registered_users.end()) {
+                    if (registered_users[sender] == 1) return;
                     _send( sock, "PRIVMSG " + sender + " :Here is what was said while you were away:\r\n");
 
                     std::ifstream file(history_file);
