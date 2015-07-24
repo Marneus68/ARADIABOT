@@ -25,6 +25,9 @@ std::string name = "";
 unsigned int port = 0;
 
 std::string last_person_to_talk = "";
+std::string last_direct_sender = "";
+
+std::string historyfile = "history.log";
 
 std::map<std::string, int> registered_users;
 
@@ -81,13 +84,20 @@ std::map<std::string, std::function<void(int sock, std::string, std::string)>> p
                 }
             }},
     {":HELP", [](int sock, std::string sender, std::string str) {
-                std::cout << "Request from " + sender + " to get the list of available commands." << std::endl;
+                std::cout << "Request from " + sender + " to get the list of all available commands." << std::endl;
                 _send( sock, "PRIVMSG " + sender + " :Here is the list of available commands:\r\n");
-                _send( sock, "PRIVMSG " + sender + " : - REGISTER\r\n");
-                _send( sock, "PRIVMSG " + sender + " : - UNREGISTER\r\n");
-                _send( sock, "PRIVMSG " + sender + " : - LIST\r\n");
-                _send( sock, "PRIVMSG " + sender + " : - HISTORY\r\n");
-                _send( sock, "PRIVMSG " + sender + " : - HELP\r\n");
+                _send( sock, "PRIVMSG " + sender + " : REGISTER       Register to the history service.\r\n");
+                _send( sock, "PRIVMSG " + sender + " : UNREGISTER     Unregister from the history service.\r\n");
+                _send( sock, "PRIVMSG " + sender + " : LIST           Show list of registered users.\r\n");
+                _send( sock, "PRIVMSG " + sender + " : HISTORY        Sends you what you missed while you weren't here.\r\n");
+                _send( sock, "PRIVMSG " + sender + " : HELP           Show this help message.\r\n");
+                _send( sock, "PRIVMSG " + sender + " : R              ribbit\r\n");
+            }},
+    {":R", [](int sock, std::string sender, std::string str) {
+                if (sender != last_direct_sender) {
+                    last_direct_sender = sender;
+                    _ribbit(sock);
+                }
             }}
 };
 
@@ -145,7 +155,7 @@ void _asyncparse(int sock, std::string in) {
                     remains += " " + vstrings[4];
                 }
                 for (auto act : privmsg_actions) {
-                    if (vstrings[3].find(act.first) != std::string::npos) {
+                    if (vstrings[3].compare(act.first) == 0) {
                         act.second(sock, sendername, remains);
                         break;
                     }
