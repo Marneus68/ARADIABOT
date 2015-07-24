@@ -24,6 +24,7 @@ std::string server = "";
 std::string channel = "";
 std::string name = "";
 unsigned int port = 0;
+unsigned int line_numbers = 0;
 
 std::string last_person_to_talk = "";
 std::string last_direct_sender = "";
@@ -34,6 +35,7 @@ std::map<std::string, int> registered_users;
 
 int _send(int sock, std::string out);
 int _read(int sock, char* buf);
+void _write(std::string line);
 void _ribbit(int sock);
 void _asyncparse(int sock, std::string in);
 
@@ -55,7 +57,7 @@ std::map<std::string, std::function<void(int sock, std::string, std::string)>> p
             }},
     {":UNREGISTER", [](int sock, std::string sender, std::string str){
                 std::cout << "Request from " + sender + " to unregister from the history service." << std::endl;
-                if (registered_users[sender]) {
+                if (registered_users.find(sender) != registered_users.end()) {
                     registered_users.erase(sender);
                     std::cout << "Removing registered user " + sender + " from the history service." << std::endl;
                     _send( sock, "PRIVMSG " + sender + " :You've been removed from the list of registered users.\r\n");
@@ -78,8 +80,19 @@ std::map<std::string, std::function<void(int sock, std::string, std::string)>> p
             }},
     {":HISTORY", [](int sock, std::string sender, std::string str){
                 std::cout << "Request from " + sender + " to get his relative history." << std::endl;
-                if (registered_users[sender]) {
-                    _send( sock, "PRIVMSG " + sender + " :Here is a rundown of everything that went down while you were away:\r\n");
+                if (registered_users.find(sender) != registered_users.end()) {
+                    _send( sock, "PRIVMSG " + sender + " :Here is what was said while you were away:\r\n");
+
+                    std::ifstream file(history_file);
+                    std::string line;
+                    if (file.good()) {
+                        int i = 0;
+                        while (std::getline(file, line)) {
+                            if (i > registered_users[sender])
+                                _send( sock, "PRIVMSG " + sender + " :  || " + line + "\r\n");
+                            i++;
+                        }
+                    }
                 } else {
                     _send( sock, "PRIVMSG " + sender + " :You're not registered to the history service.\r\n");
                 }
@@ -125,19 +138,23 @@ std::string _sendername(std::string & line) {
     return line.substr(a+1, b-1);
 }
 
+void _write(std::string line) {
+    try {
+        std::ofstream file;
+        file.open(history_file, std::ios_base::app);
+        file << line<< std::endl;
+        line_numbers++;
+        file.close();
+    } catch (...) {
+        std::cerr << "Error while writing in the history file (" << history_file << ")." << std::endl;
+    }
+}
+
 void _ribbit(int sock) {
     if (last_person_to_talk != name) {
         last_person_to_talk = name;
         _send(sock, "PRIVMSG " + channel + " :ribbit\r\n");
-
-        try {
-            std::ofstream file;
-            file.open(history_file, std::ios_base::app);
-            file << "ARADIABOT :ribbit" << std::endl;
-            file.close();
-        } catch (...) {
-            std::cerr << "Error while writing in the history file (" << history_file << ")." << std::endl;
-        }
+        _write("ARADIABOT\t :ribbit");
     }
 }
 
@@ -178,15 +195,31 @@ void _asyncparse(int sock, std::string in) {
                 for (int i = 3; i < vstrings.size(); i++)
                     remains += " " + vstrings[i];
 
-                try {
-                    std::ofstream file;
-                    file.open(history_file, std::ios_base::app);
-                    file << sendername << remains << std::endl;
-                    file.close();
-                } catch (...) {
-                    std::cerr << "Error while writing in the history file (" << history_file << ")." << std::endl;
+                _write(sendername + "\t " + remains);
+
+            }
+        } else if (vstrings[1].find("QUIT") != std::string::npos) {
+            std::string sendername = _sendername(in);
+            if (sendername.compare(name)) {
+                std::cout << sendername << " left " << channel << "." << std::endl;
+                _write(sendername + "\t left " + channel);
+
+                if (registered_users.find(sendername) != registered_users.end())
+                    registered_users[sendername] = line_numbers;
+            }
+            return;
+        } else if (vstrings[1].find("JOIN") != std::string::npos) {
+            std::string sendername = _sendername(in);
+            if (sendername.compare(name)) {
+                std::cout << sendername << " joined " << channel << "." << std::endl;
+                _write(sendername + "\t joined " + channel);
+
+                if (registered_users.find(sendername) != registered_users.end()) {
+                    _send(sock, "PRIVMSG " + sendername + " :It appears as if you're registered to the history service.\r\n");
+                    _send(sock, "PRIVMSG " + sendername + " :Type in \"/MSG " + name + " HISTORY\" to see what you've missed.\r\n");
                 }
             }
+            return;
         }
     }
 }
@@ -245,6 +278,17 @@ int main(int argc, const char *argv[]) {
     _send(sockfd, "USER  " + name + " "  + server_hostname + " bla :Aradia Megido\r\n");
     std::cout << "Joining channel..." << std::endl;
     _send(sockfd, "JOIN " + channel + "\r\n");
+
+    std::cout << "Checking local history file." << std::endl;
+    std::ifstream file(history_file);
+    std::string line;
+    if (file.good()) {
+        while (std::getline(file, line))
+            line_numbers++;
+        std::cout << line_numbers << " lines in recorded history." << std::endl;
+    } else {
+        std::cout << "No prior history file." << std::endl;
+    }
 
     char recvline[MAXLINE];
     while(_read(sockfd, recvline)) {
