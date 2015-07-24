@@ -86,11 +86,11 @@ std::map<std::string, std::function<void(int sock, std::string, std::string)>> p
     {":HELP", [](int sock, std::string sender, std::string str) {
                 std::cout << "Request from " + sender + " to get the list of all available commands." << std::endl;
                 _send( sock, "PRIVMSG " + sender + " :Here is the list of available commands:\r\n");
-                _send( sock, "PRIVMSG " + sender + " : REGISTER       Register to the history service.\r\n");
-                _send( sock, "PRIVMSG " + sender + " : UNREGISTER     Unregister from the history service.\r\n");
-                _send( sock, "PRIVMSG " + sender + " : LIST           Show list of registered users.\r\n");
+                _send( sock, "PRIVMSG " + sender + " : REGISTER       Registers the user to the history service.\r\n");
+                _send( sock, "PRIVMSG " + sender + " : UNREGISTER     Unregisters the user from the history service.\r\n");
+                _send( sock, "PRIVMSG " + sender + " : LIST           Shows list of registered users.\r\n");
                 _send( sock, "PRIVMSG " + sender + " : HISTORY        Sends you what you missed while you weren't here.\r\n");
-                _send( sock, "PRIVMSG " + sender + " : HELP           Show this help message.\r\n");
+                _send( sock, "PRIVMSG " + sender + " : HELP           Shows this help message.\r\n");
                 _send( sock, "PRIVMSG " + sender + " : R              ribbit\r\n");
             }},
     {":R", [](int sock, std::string sender, std::string str) {
