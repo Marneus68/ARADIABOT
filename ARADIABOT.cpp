@@ -8,15 +8,17 @@
 
 #include <functional>
 #include <iterator>
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
 #include <sstream>
 #include <string>
+#include <cstdio>
 #include <thread> 
 #include <vector>
+#include <chrono>
 #include <map>
-#include <algorithm>
 
 #define MAXLINE 4096
 
@@ -31,12 +33,14 @@ std::string last_person_to_talk = "";
 std::string last_direct_sender = "";
 
 std::string history_file = "history.log";
+std::string users_file = "users.log";
 
 std::map<std::string, int> registered_users;
 
 int _send(int sock, std::string out);
 int _read(int sock, char* buf);
 void _write(std::string line);
+void _writeusers();
 void _ribbit(int sock);
 void _asyncparse(int sock, std::string in);
 
@@ -74,6 +78,7 @@ std::map<std::string, std::function<void(int sock, std::string, std::string)>> p
                     for(auto o : registered_users) {
                         _send( sock, "PRIVMSG " + sender + " : - " + o.first +"\r\n");
                         std::cout << " - " << o.first << std::endl;
+                        std::this_thread::sleep_for(std::chrono::milliseconds(400));
                     }
                     return;
                 } 
@@ -82,7 +87,10 @@ std::map<std::string, std::function<void(int sock, std::string, std::string)>> p
     {":HISTORY", [](int sock, std::string sender, std::string str){
                 std::cout << "Request from " + sender + " to get his relative history." << std::endl;
                 if (registered_users.find(sender) != registered_users.end()) {
-                    if (registered_users[sender] == 1) return;
+                    if (registered_users[sender] == 1) {
+                        _send( sock, "PRIVMSG " + sender + " :You haven't left the channel since you registered to the history service.\r\n");
+                        return;
+                    }
                     _send( sock, "PRIVMSG " + sender + " :Here is what was said while you were away:\r\n");
 
                     std::ifstream file(history_file);
@@ -90,14 +98,21 @@ std::map<std::string, std::function<void(int sock, std::string, std::string)>> p
                     if (file.good()) {
                         int i = 0;
                         while (std::getline(file, line)) {
-                            if (i > registered_users[sender]-1)
+                            if (i > registered_users[sender]-2) {
                                 _send( sock, "PRIVMSG " + sender + " :  || " + line + "\r\n");
+                                std::this_thread::sleep_for(std::chrono::milliseconds(400));
+                            }
                             i++;
                         }
                     }
+                    file.close();
                 } else {
                     _send( sock, "PRIVMSG " + sender + " :You're not registered to the history service.\r\n");
                 }
+            }},
+    {":WRITE", [](int sock, std::string sender, std::string str) {
+                std::cout << "Request from " + sender + " to write the list of users." << std::endl;
+                _writeusers();
             }},
     {":HELP", [](int sock, std::string sender, std::string str) {
                 std::cout << "Request from " + sender + " to get the list of all available commands." << std::endl;
@@ -106,6 +121,7 @@ std::map<std::string, std::function<void(int sock, std::string, std::string)>> p
                 _send( sock, "PRIVMSG " + sender + " : UNREGISTER     Unregisters the user from the history service.\r\n");
                 _send( sock, "PRIVMSG " + sender + " : LIST           Shows list of registered users.\r\n");
                 _send( sock, "PRIVMSG " + sender + " : HISTORY        Sends you what you missed while you weren't here.\r\n");
+                _send( sock, "PRIVMSG " + sender + " : WRITE          Request the list of registered users to be saved\r\n");
                 _send( sock, "PRIVMSG " + sender + " : HELP           Shows this help message.\r\n");
                 _send( sock, "PRIVMSG " + sender + " : R              ribbit\r\n");
             }},
@@ -152,17 +168,31 @@ void _write(std::string line) {
     }
 }
 
+void _writeusers() {
+    remove(users_file.c_str());
+    try {
+        std::ofstream file;
+        file.open(users_file, std::ios_base::app);
+        for (auto o : registered_users) {
+            file << o.first << " " << o.second << std::endl;
+        }
+        file.close();
+    } catch (...) {
+        std::cerr << "Error while writing in the users file (" << users_file << ")." << std::endl;
+    }
+}
+
 void _ribbit(int sock) {
     if (last_person_to_talk != name) {
         last_person_to_talk = name;
         _send(sock, "PRIVMSG " + channel + " :ribbit\r\n");
-        _write("ARADIABOT\t :ribbit");
+        _write(name + "\t :ribbit");
     }
 }
 
 std::string upperCase(std::string word){ 
- std::transform(word.begin(), word.end(),word.begin(), ::toupper);
- return word;
+    std::transform(word.begin(), word.end(),word.begin(), ::toupper);
+    return word;
 }
 
 void _asyncparse(int sock, std::string in) {
@@ -206,20 +236,22 @@ void _asyncparse(int sock, std::string in) {
 
             }
         } else if (vstrings[1].find("QUIT") != std::string::npos) {
+            // Someone left the channel
             std::string sendername = _sendername(in);
             if (sendername.compare(name)) {
                 std::cout << sendername << " left " << channel << "." << std::endl;
-                _write(sendername + "\t left " + channel);
+                _write(sendername + " left " + channel);
 
                 if (registered_users.find(sendername) != registered_users.end())
                     registered_users[sendername] = line_numbers;
             }
             return;
         } else if (vstrings[1].find("JOIN") != std::string::npos) {
+            // Someone joined the channel
             std::string sendername = _sendername(in);
             if (sendername.compare(name)) {
                 std::cout << sendername << " joined " << channel << "." << std::endl;
-                _write(sendername + "\t joined " + channel);
+                _write(sendername + " joined " + channel);
 
                 if (registered_users.find(sendername) != registered_users.end()) {
                     _send(sock, "PRIVMSG " + sendername + " :It appears as if you're registered to the history service.\r\n");
@@ -289,21 +321,51 @@ int main(int argc, const char *argv[]) {
     std::cout << "Joining channel..." << std::endl;
     _send(sockfd, "JOIN " + channel + "\r\n");
 
-    std::cout << "Checking local history file." << std::endl;
-    std::ifstream file(history_file);
     std::string line;
-    if (file.good()) {
-        while (std::getline(file, line))
+
+    // Loading the number of lines in the local history file
+    std::cout << "Checking local history file." << std::endl;
+    std::ifstream histfile(history_file);
+    if (histfile.good()) {
+        while (std::getline(histfile, line))
             line_numbers++;
         std::cout << line_numbers << " lines in recorded history." << std::endl;
     } else {
         std::cout << "No prior history file." << std::endl;
     }
 
+    // Grabs the registered users from the local file
+    std::cout << "Checking list of registered users." << std::endl;
+    std::ifstream usefile(users_file);
+    if (usefile.good()) {
+        int numusers = 0;
+
+        while (std::getline(usefile, line)) {
+            std::stringstream ss(line);
+            std::string item;
+            std::vector<std::string> splits;
+            while (std::getline(ss, item, ' ')) {
+                splits.push_back(item);
+            } 
+            std::cout << splits[0] << " " << splits[1] << std::endl;
+            registered_users[splits[0]] = std::stoi(splits[1]);
+            numusers++;
+        }
+        std::cout << numusers << " registered users." << std::endl;
+    } else {
+        std::cout << "No previously registered users." << std::endl;
+    }
+
+    _write(name + " " + " joined " + channel + ".");
+
     char recvline[MAXLINE];
     while(_read(sockfd, recvline)) {
         std::string s = recvline;
         std::thread(_asyncparse, sockfd, s).detach();
     }
+    
+    _write(name + " " + " left " + channel + ".");
+    _writeusers();
+
     return 0;
 }
