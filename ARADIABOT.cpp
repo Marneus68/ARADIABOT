@@ -16,6 +16,7 @@
 #include <thread> 
 #include <vector>
 #include <map>
+#include <algorithm>
 
 #define MAXLINE 4096
 
