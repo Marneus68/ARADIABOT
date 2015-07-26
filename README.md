@@ -2,7 +2,7 @@
 
 Simple and small IRC bot written in C++11.  
 
-With this bot, the users of your channel that register to it will be able to obtain an rundown of what was said and happened while they weren't connected.   
+With this bot, the users of your channel that register will be able to obtain a rundown of what was said and happened while they weren't connected.   
 
 ## Building
 
