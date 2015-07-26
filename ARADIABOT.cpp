@@ -159,6 +159,11 @@ void _ribbit(int sock) {
     }
 }
 
+std::string upperCase(std::string word){ 
+ std::transform(word.begin(), word.end(),word.begin(), ::toupper);
+ return word;
+}
+
 void _asyncparse(int sock, std::string in) {
     std::stringstream ss(in);
     std::istream_iterator<std::string> begin(ss);
@@ -182,7 +187,7 @@ void _asyncparse(int sock, std::string in) {
                 for (int i = 4; i < vstrings.size(); i++)
                     remains += " " + vstrings[i];
                 for (auto act : privmsg_actions) {
-                    if (vstrings[3].compare(act.first) == 0) {
+                    if (upperCase(vstrings[3]).compare(act.first) == 0) {
                         act.second(sock, sendername, remains);
                         break;
                     }
