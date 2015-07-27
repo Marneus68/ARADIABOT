@@ -29,6 +29,8 @@ std::string name = "";
 unsigned int port = 0;
 unsigned int line_numbers = 0;
 
+int timeout = 550;
+
 std::string last_person_to_talk = "";
 std::string last_direct_sender = "";
 
@@ -59,6 +61,7 @@ std::map<std::string, std::function<void(int sock, std::string, std::string)>> p
                 std::cout << "Adding user " + sender + " to history service." << std::endl;
                 _send( sock, "PRIVMSG " + sender + " :You've been added to the list of registered users.\r\n");
                 registered_users[sender] = 1;
+                _writeusers();
             }},
     {":UNREGISTER", [](int sock, std::string sender, std::string str){
                 std::cout << "Request from " + sender + " to unregister from the history service." << std::endl;
@@ -70,6 +73,7 @@ std::map<std::string, std::function<void(int sock, std::string, std::string)>> p
                     std::cout << "User " + sender + " is not registered in the history service." << std::endl;
                     _send( sock, "PRIVMSG " + sender + " :You're not on the list of registered users.\r\n");
                 }
+                _writeusers();
             }},
     {":LIST", [](int sock, std::string sender, std::string str){
                 std::cout << "Request from " + sender + " to get the list of registered users:" << std::endl;
@@ -78,7 +82,7 @@ std::map<std::string, std::function<void(int sock, std::string, std::string)>> p
                     for(auto o : registered_users) {
                         _send( sock, "PRIVMSG " + sender + " : - " + o.first +"\r\n");
                         std::cout << " - " << o.first << std::endl;
-                        std::this_thread::sleep_for(std::chrono::milliseconds(400));
+                        std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
                     }
                     return;
                 } 
@@ -100,7 +104,7 @@ std::map<std::string, std::function<void(int sock, std::string, std::string)>> p
                         while (std::getline(file, line)) {
                             if (i > registered_users[sender]-2) {
                                 _send( sock, "PRIVMSG " + sender + " :  || " + line + "\r\n");
-                                std::this_thread::sleep_for(std::chrono::milliseconds(400));
+                                std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
                             }
                             i++;
                         }
