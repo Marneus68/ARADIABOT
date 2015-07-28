@@ -39,6 +39,7 @@ std::string history_file = "history.log";
 std::string users_file = "users.log";
 
 std::map<std::string, int> registered_users;
+std::map<std::string, bool> history_users;
 
 int _send(int sock, std::string out);
 int _read(int sock, char* buf);
@@ -90,6 +91,12 @@ std::map<std::string, std::function<void(int sock, std::string, std::string)>> p
                 } 
                 _send( sock, "PRIVMSG " + sender + " :No users registered yet.\r\n");
             }},
+    {":STOP", [](int sock, std::string sender, std::string str){
+                std::cout << "Request from " + sender + " to stop history loop." << std::endl;
+                if(history_users[sender])
+                    history_users[sender] = false;
+                _send( sock, "PRIVMSG " + sender + " :y0u are an undecided kind of tr0ll.:\r\n");
+            }};
     {":HISTORY", [](int sock, std::string sender, std::string str){
                 std::cout << "Request from " + sender + " to get his relative history." << std::endl;
                 if (registered_users.find(sender) != registered_users.end()) {
@@ -97,13 +104,17 @@ std::map<std::string, std::function<void(int sock, std::string, std::string)>> p
                         _send( sock, "PRIVMSG " + sender + " :You haven't left the channel since you registered to the history service.\r\n");
                         return;
                     }
+                    if(history_users.find(sender) == history_users.end())
+                        history_users.insert(std::par<std::string,bool>(sender,true));
+                    if(!history_users[sender])
+                        history_users[sender] = true;
                     _send( sock, "PRIVMSG " + sender + " :Here is what was said while you were away:\r\n");
 
                     std::ifstream file(history_file);
                     std::string line;
                     if (file.good()) {
                         int i = 0;
-                        while (std::getline(file, line)) {
+                        while (std::getline(file, line) && history_users[sender]) {
                             if (i > registered_users[sender]-2) {
                                 _send( sock, "PRIVMSG " + sender + " :  || " + line + "\r\n");
                                 std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
@@ -112,6 +123,7 @@ std::map<std::string, std::function<void(int sock, std::string, std::string)>> p
                         }
                     }
                     file.close();
+                    history_users[sender] = false;
                 } else {
                     _send( sock, "PRIVMSG " + sender + " :You're not registered to the history service.\r\n");
                 }
