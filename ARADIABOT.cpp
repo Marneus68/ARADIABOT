@@ -19,6 +19,7 @@
 #include <vector>
 #include <chrono>
 #include <map>
+#include <ctime>
 
 #define MAXLINE 4096
 
@@ -194,6 +195,14 @@ void _ribbit(int sock) {
     }
 }
 
+std::string getTime()
+{
+    time_t t = time(0);
+    struct tm * now = localtime( & t );
+    return "["+now->tm_hour+":"+now->tm_min+":"+now->tm_sec+"]";
+
+}
+
 std::string upperCase(std::string word){ 
     std::transform(word.begin(), word.end(),word.begin(), ::toupper);
     return word;
@@ -236,7 +245,7 @@ void _asyncparse(int sock, std::string in) {
                 for (int i = 3; i < vstrings.size(); i++)
                     remains += " " + vstrings[i];
 
-                _write(sendername + "\t " + remains);
+                _write(getTime()+" "+sendername + "\t " + remains);
 
             }
         } else if (vstrings[1].find("QUIT") != std::string::npos) {
