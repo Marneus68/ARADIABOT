@@ -199,8 +199,8 @@ void _ribbit(int sock) {
 std::string _getTime(){
     time_t t = time(0);
     struct tm * now = localtime( & t );
-    char buffer[80];
-    strftime(buffer,80,"[%H:%M:%S]",now);
+    char* buffer;
+    strftime(buffer,sizeof(buffer),"[%H:%M:%S]",now);
     return buffer;
 
 }
