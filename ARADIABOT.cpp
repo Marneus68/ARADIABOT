@@ -211,8 +211,8 @@ void _ribbit(int sock) {
 std::string _getTime(){
     time_t t = time(0);
     struct tm * now = localtime( & t );
-    char* buffer;
-    strftime(buffer,sizeof(buffer),"[%H:%M:%S]",now);
+    char buffer[10];
+    strftime(buffer,10,"[%H:%M:%S]",now);
     return buffer;
 
 }
@@ -258,7 +258,6 @@ void _asyncparse(int sock, std::string in) {
 
                 for (int i = 3; i < vstrings.size(); i++)
                     remains += " " + vstrings[i];
-
                 _write(_getTime()+"\t"+sendername + "\t " + remains);
 
             }
