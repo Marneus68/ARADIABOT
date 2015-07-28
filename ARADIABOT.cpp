@@ -106,11 +106,11 @@ std::map<std::string, std::function<void(int sock, std::string, std::string)>> p
                     }
                     if(history_users.find(sender) == history_users.end())
                         history_users.insert(std::pair<std::string,bool>(sender,false));
-                    _send( sock, "PRIVMSG " + sender + " :Here is what was said while you were away:\r\n");
 
                     std::ifstream file(history_file);
                     std::string line;
                     if (file.good() && !history_users[sender]) {
+			_send( sock, "PRIVMSG " + sender + " :Here is what was said while you were away:\r\n");
                         history_users[sender] = true;
                         int i = 0;
                         while (std::getline(file, line) && history_users[sender]) {
@@ -210,8 +210,8 @@ void _ribbit(int sock) {
 std::string _getTime(){
     time_t t = time(0);
     struct tm * now = localtime( & t );
-    char buffer[10];
-    strftime(buffer,10,"[%H:%M:%S]",now);
+    char buffer[11];
+    strftime(buffer,11,"[%H:%M:%S]",now);
     return buffer;
 
 }
