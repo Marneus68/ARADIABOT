@@ -195,15 +195,14 @@ void _ribbit(int sock) {
     }
 }
 
-std::string getTime()
-{
+std::string _getTime(){
     time_t t = time(0);
     struct tm * now = localtime( & t );
-    return "["+now->tm_hour+":"+now->tm_min+":"+now->tm_sec+"]";
+    return "["+std::to_string(now->tm_hour)+":"+std::to_string(now->tm_min)+":"+std::to_string(now->tm_sec)+"]";
 
 }
 
-std::string upperCase(std::string word){ 
+std::string _upperCase(std::string word){ 
     std::transform(word.begin(), word.end(),word.begin(), ::toupper);
     return word;
 }
@@ -231,7 +230,7 @@ void _asyncparse(int sock, std::string in) {
                 for (int i = 4; i < vstrings.size(); i++)
                     remains += " " + vstrings[i];
                 for (auto act : privmsg_actions) {
-                    if (upperCase(vstrings[3]).compare(act.first) == 0) {
+                    if (_upperCase(vstrings[3]).compare(act.first) == 0) {
                         act.second(sock, sendername, remains);
                         break;
                     }
@@ -245,7 +244,7 @@ void _asyncparse(int sock, std::string in) {
                 for (int i = 3; i < vstrings.size(); i++)
                     remains += " " + vstrings[i];
 
-                _write(getTime()+" "+sendername + "\t " + remains);
+                _write(_getTime()+" "+sendername + "\t " + remains);
 
             }
         } else if (vstrings[1].find("QUIT") != std::string::npos) {
