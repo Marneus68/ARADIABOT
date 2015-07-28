@@ -96,7 +96,7 @@ std::map<std::string, std::function<void(int sock, std::string, std::string)>> p
                 if(history_users[sender])
                     history_users[sender] = false;
                 _send( sock, "PRIVMSG " + sender + " :y0u are an undecided kind of tr0ll.:\r\n");
-            }};
+            }},
     {":HISTORY", [](int sock, std::string sender, std::string str){
                 std::cout << "Request from " + sender + " to get his relative history." << std::endl;
                 if (registered_users.find(sender) != registered_users.end()) {
