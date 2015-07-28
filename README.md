@@ -4,6 +4,8 @@ Simple and small IRC bot written in C++11.
 
 With this bot, the users of your channel that register will be able to obtain a rundown of what was said and happened while they weren't connected.   
 
+You can find the sources on GitHub [here](https://github.com/Marneus68/ARADIABOT).
+
 ## Building
 
 On any standard UNIX system with a g++ versuon that supports C++11, you can compile `ARADIABOT` simply by "running" the source file.   
@@ -53,4 +55,4 @@ By running ARADIABOT, two files will be created by the executable. Those files, 
 
 ## License
 
-ARADIABOT is under the WTFPL. See LICENSE for more details.  
+ARADIABOT is under the WTFPL. See [LICENSE](https://raw.githubusercontent.com/Marneus68/ARADIABOT/master/LICENSE) for more details.  
