@@ -199,7 +199,9 @@ void _ribbit(int sock) {
 std::string _getTime(){
     time_t t = time(0);
     struct tm * now = localtime( & t );
-    return "["+std::to_string(now->tm_hour)+":"+std::to_string(now->tm_min)+":"+std::to_string(now->tm_sec)+"]";
+    char buffer[80];
+    strftime(buffer,80,"[%H:%M:%S]",now);
+    return buffer;
 
 }
 
