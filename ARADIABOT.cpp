@@ -105,7 +105,7 @@ std::map<std::string, std::function<void(int sock, std::string, std::string)>> p
                         return;
                     }
                     if(history_users.find(sender) == history_users.end())
-                        history_users.insert(std::par<std::string,bool>(sender,true));
+                        history_users.insert(std::pair<std::string,bool>(sender,true));
                     if(!history_users[sender])
                         history_users[sender] = true;
                     _send( sock, "PRIVMSG " + sender + " :Here is what was said while you were away:\r\n");
