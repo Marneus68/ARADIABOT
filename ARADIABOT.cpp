@@ -47,6 +47,7 @@ void _writeusers();
 void _ribbit(int sock);
 void _asyncparse(int sock, std::string in);
 
+std::string _getTime();
 std::string _sendername(std::string & line);
 
 std::map<std::string, std::function<void(int sock, std::string, std::string)>> privmsg_actions = {
@@ -244,15 +245,15 @@ void _asyncparse(int sock, std::string in) {
                 for (int i = 3; i < vstrings.size(); i++)
                     remains += " " + vstrings[i];
 
-                _write(_getTime()+" "+sendername + "\t " + remains);
+                _write(_getTime()+"\t"+sendername + "\t " + remains);
 
             }
         } else if (vstrings[1].find("QUIT") != std::string::npos) {
             // Someone left the channel
             std::string sendername = _sendername(in);
             if (sendername.compare(name)) {
-                std::cout << sendername << " left " << channel << "." << std::endl;
-                _write(sendername + " left " + channel);
+                std::cout << _getTime() << " " << sendername << " left " << channel << "." << std::endl;
+                _write(_getTime() + " " + sendername + " left " + channel);
 
                 if (registered_users.find(sendername) != registered_users.end())
                     registered_users[sendername] = line_numbers;
@@ -262,8 +263,8 @@ void _asyncparse(int sock, std::string in) {
             // Someone joined the channel
             std::string sendername = _sendername(in);
             if (sendername.compare(name)) {
-                std::cout << sendername << " joined " << channel << "." << std::endl;
-                _write(sendername + " joined " + channel);
+                std::cout << _getTime() << " " << sendername << " joined " << channel << "." << std::endl;
+                _write(_getTime() + " " + sendername + " joined " + channel);
 
                 if (registered_users.find(sendername) != registered_users.end()) {
                     _send(sock, "PRIVMSG " + sendername + " :It appears as if you're registered to the history service.\r\n");
@@ -376,7 +377,7 @@ int main(int argc, const char *argv[]) {
         std::thread(_asyncparse, sockfd, s).detach();
     }
     
-    _write(name + " " + " left " + channel + ".");
+    _write(_getTime() + " " + name + " " + " left " + channel + ".");
     _writeusers();
 
     return 0;
