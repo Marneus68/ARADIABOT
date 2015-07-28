@@ -105,14 +105,13 @@ std::map<std::string, std::function<void(int sock, std::string, std::string)>> p
                         return;
                     }
                     if(history_users.find(sender) == history_users.end())
-                        history_users.insert(std::pair<std::string,bool>(sender,true));
-                    if(!history_users[sender])
-                        history_users[sender] = true;
+                        history_users.insert(std::pair<std::string,bool>(sender,false));
                     _send( sock, "PRIVMSG " + sender + " :Here is what was said while you were away:\r\n");
 
                     std::ifstream file(history_file);
                     std::string line;
-                    if (file.good()) {
+                    if (file.good() && !history_users[sender]) {
+                        history_users[sender] = true;
                         int i = 0;
                         while (std::getline(file, line) && history_users[sender]) {
                             if (i > registered_users[sender]-2) {
@@ -121,9 +120,9 @@ std::map<std::string, std::function<void(int sock, std::string, std::string)>> p
                             }
                             i++;
                         }
+                        history_users[sender] = false;
                     }
                     file.close();
-                    history_users[sender] = false;
                 } else {
                     _send( sock, "PRIVMSG " + sender + " :You're not registered to the history service.\r\n");
                 }
